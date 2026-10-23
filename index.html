@@ -133,8 +133,8 @@
   <details id="pasteBox">
     <summary>Forgot to start a timer? Paste from Slack</summary>
     <div>
-      <p class="help">Paste your status lines, for example: <b>Restroom 1:05 PM - 1:12 PM</b> or <b>Other Break 15 mins</b>. One status per line.</p>
-      <textarea id="pasteText" placeholder="Restroom 1:05 PM - 1:12 PM&#10;Other Break 2:30 PM - 2:45 PM&#10;Technical Issue 6 mins"></textarea>
+      <p class="help">Copy your <b>offline</b> and <b>online</b> messages straight from Slack and paste them here. The time between each pair is deducted. You can also type lines like <b>Restroom 1:05 PM - 1:12 PM</b> or <b>Other Break 15 mins</b>.</p>
+      <textarea id="pasteText" placeholder="Ken Ji Boston (Operator) is now offline (restroom break):&#10;Fri, 10-23-2026 01:02 PM&#10;Ken Ji Boston (Operator) is now online for operations, ride-registrations:&#10;Fri, 10-23-2026 01:11 PM"></textarea>
       <div class="actions">
         <button type="button" id="readBtn">Read text</button>
         <button type="button" id="addBtn" class="start" style="display:none">Deduct from today</button>
@@ -384,11 +384,84 @@
     return { id: id, sec: 0, line: line };
   }
 
+  /* Slack presence messages, e.g.
+       Ken Ji Boston (Operator) is now offline (restroom break):
+       Fri, 10-23-2026 01:02 PM
+       Ken Ji Boston (Operator) is now online for operations, ride-registrations:
+       Fri, 10-23-2026 01:11 PM
+     Each offline message is paired with the next online message from the same person. */
+  var SLACK_SRC = "([^\\n(]+?)\\s*\\(Operator\\)\\s+is now (offline|online)([^\\n]*?):\\s*(?:[A-Za-z]{3},?\\s*)?(\\d{1,2})-(\\d{1,2})-(\\d{4})\\s+(\\d{1,2}):(\\d{2})(?::(\\d{2}))?\\s*([AP]M)";
+  function pad2(n) { return (n < 10 ? "0" : "") + n; }
+  function fmtClock(t) {
+    var d = new Date(t), h = d.getUTCHours(), ap = h >= 12 ? "PM" : "AM";
+    h = h % 12; if (h === 0) h = 12;
+    return h + ":" + pad2(d.getUTCMinutes()) + " " + ap;
+  }
+  function readSlack(text) {
+    var re = new RegExp(SLACK_SRC, "gi"), ev = [], m, idx = 0;
+    while ((m = re.exec(text))) {
+      var h = parseInt(m[7], 10) % 12;
+      if (m[10].toUpperCase() === "PM") h += 12;
+      var y = parseInt(m[6], 10), mo = parseInt(m[4], 10), da = parseInt(m[5], 10);
+      ev.push({
+        who: m[1].replace(/^.*\bago\b\s*/i, "").trim(),
+        kind: m[2].toLowerCase(),
+        status: m[3],
+        t: Date.UTC(y, mo - 1, da, h, parseInt(m[8], 10), parseInt(m[9] || "0", 10)),
+        day: y + "-" + pad2(mo) + "-" + pad2(da),
+        i: idx++
+      });
+    }
+    var out = { found: ev.length > 0, entries: [], notes: [] };
+    var people = {};
+    ev.forEach(function (e) { (people[e.who] = people[e.who] || []).push(e); });
+    Object.keys(people).forEach(function (who) {
+      var list = people[who].sort(function (a, b) { return a.t - b.t || a.i - b.i; });
+      var open = null;
+      list.forEach(function (e) {
+        if (e.kind === "offline") {
+          if (open) out.notes.push(who + ": offline at " + fmtClock(open.t) + " has no online message after it, skipped.");
+          open = e;
+          return;
+        }
+        if (!open) return; // online with no matching offline (e.g. start of shift)
+        var sec = Math.round((e.t - open.t) / 1000);
+        var id = findStatus(open.status);
+        if (!id) {
+          out.notes.push(who + ": couldn't tell the status for the offline at " + fmtClock(open.t) + " (" + open.status.replace(/[()]/g, "").trim() + ").");
+        } else if (sec > 0) {
+          var key = who + "|" + open.t;
+          out.entries.push({
+            id: id, sec: sec, who: who, key: key,
+            text: fmtClock(open.t) + " to " + fmtClock(e.t),
+            dup: state.log.some(function (l) { return l.key === key; }),
+            old: open.day !== state.date
+          });
+        }
+        open = null;
+      });
+      if (open) out.notes.push(who + " is still offline since " + fmtClock(open.t) + " (no online message yet). Use the Start button for that one.");
+    });
+    return out;
+  }
+
   var pending = [];
   var $parsed = document.getElementById("parsed"), $addBtn = document.getElementById("addBtn");
   document.getElementById("readBtn").addEventListener("click", function () {
-    var lines = document.getElementById("pasteText").value.split(/\r?\n/);
-    pending = []; $parsed.innerHTML = "";
+    var rawText = document.getElementById("pasteText").value;
+    var slack = readSlack(rawText);
+    var lines = slack.found ? [] : rawText.split(/\r?\n/);
+    pending = slack.entries.slice(); $parsed.innerHTML = "";
+    slack.notes.forEach(function (n) {
+      var note = document.createElement("div");
+      note.className = "bad"; note.textContent = n;
+      $parsed.appendChild(note);
+    });
+    if (slack.found && !pending.length && !slack.notes.length) {
+      var nopair = document.createElement("div");
+      nopair.className = "bad"; nopair.textContent = "Found Slack messages, but no offline + online pair to calculate. Include the online message that ended the break.";
+      $parsed.appendChild(nopair);
+    }
     lines.forEach(function (raw) {
       var line = raw.trim();
       if (!line) return;
@@ -403,17 +476,41 @@
         $parsed.appendChild(bad);
       }
     });
+    var names = [];
+    pending.forEach(function (it) { if (it.who && names.indexOf(it.who) < 0) names.push(it.who); });
+    var sel = null;
+    if (names.length > 1) {
+      var wrap = document.createElement("div");
+      wrap.className = "help";
+      wrap.textContent = "Several people found. Whose time is this? ";
+      sel = document.createElement("select");
+      names.forEach(function (n) { var o = document.createElement("option"); o.value = n; o.textContent = n; sel.appendChild(o); });
+      wrap.appendChild(sel);
+      $parsed.appendChild(wrap);
+    }
+    var rows = [];
     pending.forEach(function (item, i) {
       var lab = document.createElement("label");
       var cb = document.createElement("input");
-      cb.type = "checkbox"; cb.checked = item.sec <= 7200; cb.dataset.i = i;
+      cb.type = "checkbox"; cb.dataset.i = i;
       var t = document.createElement("span");
-      t.textContent = byId(item.id).name + "  (" + item.text + ")";
+      t.textContent = byId(item.id).name + "  (" + item.text + ")" + (names.length === 1 ? "  " + item.who : "");
+      var flag = item.dup ? "  already added" : item.old ? "  not today" : item.sec > 7200 ? "  check this" : "";
       var amt = document.createElement("span");
-      amt.className = "amt"; amt.textContent = mmss(item.sec) + (item.sec > 7200 ? "  check this" : "");
+      amt.className = "amt"; amt.textContent = mmss(item.sec) + flag;
       lab.appendChild(cb); lab.appendChild(t); lab.appendChild(amt);
       $parsed.appendChild(lab);
+      rows.push({ item: item, cb: cb, lab: lab });
     });
+    function applyWho() {
+      rows.forEach(function (r) {
+        var mine = !sel || r.item.who === sel.value;
+        r.lab.style.display = mine ? "" : "none";
+        r.cb.checked = mine && !r.item.dup && !r.item.old && r.item.sec <= 7200;
+      });
+    }
+    if (sel) sel.addEventListener("change", applyWho);
+    applyWho();
     if (!pending.length && !$parsed.children.length) {
       var none = document.createElement("div");
       none.className = "bad"; none.textContent = "Nothing to read yet. Paste at least one line with a status and a time.";
@@ -428,7 +525,7 @@
       if (!boxes[i].checked) continue;
       var it = pending[parseInt(boxes[i].dataset.i, 10)];
       state.used[it.id] = (state.used[it.id] || 0) + it.sec;
-      state.log.push({ id: it.id, sec: it.sec, text: it.text });
+      state.log.push({ id: it.id, sec: it.sec, text: it.text, key: it.key });
       added++;
     }
     if (added) {
