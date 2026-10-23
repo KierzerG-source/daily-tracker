@@ -23,62 +23,77 @@
     --num: "Chivo Mono", ui-monospace, Menlo, Consolas, monospace;
   }
   * { box-sizing: border-box; }
-  html, body { margin: 0; background: var(--ink); color: var(--text); font-family: var(--sans); }
-  body { min-height: 100vh; line-height: 1.45; }
-  .wrap { max-width: 760px; margin: 0 auto; padding: 20px 16px 64px; }
+  html, body { margin: 0; background: var(--ink); color: var(--text); font-family: var(--sans); font-size: 14px; }
+  body { min-height: 100vh; line-height: 1.35; }
+  .wrap { max-width: 560px; margin: 0 auto; padding: 10px 10px 40px; }
 
   /* Clock */
-  .clock { padding: 18px 0 22px; border-bottom: 1px solid var(--line); }
-  .site-name { font-weight: 800; font-size: 20px; margin-bottom: 10px; }
-  .clock-time { font-family: var(--num); font-weight: 700; font-size: clamp(44px, 12vw, 84px); letter-spacing: -0.02em; line-height: 1; font-variant-numeric: tabular-nums; }
-  .clock-time small { font-size: 0.35em; margin-left: 8px; color: var(--muted); font-weight: 500; }
-  .clock-date { margin-top: 8px; color: var(--muted); }
-  .settings { display: flex; flex-wrap: wrap; gap: 14px 22px; margin-top: 16px; align-items: center; }
-  .settings label { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 14px; }
-  input, select { background: var(--panel-2); color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 7px 9px; font: inherit; font-size: 15px; }
-  input[type=number] { width: 78px; font-family: var(--num); }
+  .clock { padding: 4px 0 10px; border-bottom: 1px solid var(--line); }
+  .clock-top { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+  .site-name { font-weight: 800; font-size: 13px; color: var(--muted); }
+  .clock-time { font-family: var(--num); font-weight: 700; font-size: clamp(28px, 9vw, 40px); letter-spacing: -0.02em; line-height: 1.1; font-variant-numeric: tabular-nums; }
+  .clock-time small { font-size: 12px; margin-left: 6px; color: var(--muted); font-weight: 500; letter-spacing: 0; }
+  .clock-date { color: var(--muted); font-size: 12px; }
+  .settings { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 6px; align-items: center; }
+  .settings label { display: flex; align-items: center; gap: 6px; color: var(--muted); font-size: 12px; }
+  input, select, textarea { background: var(--panel-2); color: var(--text); border: 1px solid var(--line); border-radius: 5px; padding: 3px 6px; font: inherit; font-size: 13px; }
+  input[type=number] { width: 58px; font-family: var(--num); }
 
   /* Active banner */
-  .now { margin: 18px 0 8px; padding: 14px 16px; border-radius: 10px; background: var(--panel); border: 1px solid var(--line); display: flex; justify-content: space-between; align-items: center; gap: 12px; min-height: 68px; }
+  .now { margin: 10px 0 6px; padding: 8px 12px; border-radius: 8px; background: var(--panel); border: 1px solid var(--line); display: flex; justify-content: space-between; align-items: center; gap: 10px; }
   .now.running { border-color: var(--go); }
   .now.over { border-color: var(--over); }
-  .now-name { font-weight: 800; font-size: 18px; }
-  .now-sub { color: var(--muted); font-size: 14px; }
-  .now-time { font-family: var(--num); font-weight: 700; font-size: 34px; font-variant-numeric: tabular-nums; }
+  .now-name { font-weight: 800; font-size: 14px; }
+  .now-sub { color: var(--muted); font-size: 12px; }
+  .now-time { font-family: var(--num); font-weight: 700; font-size: 24px; font-variant-numeric: tabular-nums; }
 
   /* Status rows */
-  .row { margin-top: 10px; padding: 14px 16px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; display: grid; grid-template-columns: 1fr auto; gap: 6px 14px; align-items: center; }
+  .row { margin-top: 5px; padding: 7px 10px 8px; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; display: grid; grid-template-columns: 1fr auto auto; gap: 2px 10px; align-items: center; }
   .row.active { border-color: var(--go); background: var(--panel-2); }
   .row.over { border-color: var(--over); }
-  .row-name { font-weight: 800; font-size: 17px; }
-  .row-rule { color: var(--muted); font-size: 13.5px; grid-column: 1; }
-  .row-left { font-family: var(--num); font-weight: 700; font-size: 26px; text-align: right; font-variant-numeric: tabular-nums; }
+  .info { min-width: 0; }
+  .row-head { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+  .row-name { font-weight: 800; font-size: 14px; }
+  .used { color: var(--muted); font-size: 11.5px; font-variant-numeric: tabular-nums; }
+  .row-rule { color: var(--muted); font-size: 11.5px; }
+  .row-left { font-family: var(--num); font-weight: 700; font-size: 19px; text-align: right; font-variant-numeric: tabular-nums; min-width: 66px; }
   .row-left.warn { color: var(--warn); }
   .row-left.over { color: var(--over); }
-  .bar { grid-column: 1 / -1; height: 6px; background: var(--ink); border-radius: 3px; overflow: hidden; }
+  .bar { grid-column: 1 / -1; height: 3px; background: var(--ink); border-radius: 2px; overflow: hidden; margin-top: 4px; }
   .bar > i { display: block; height: 100%; width: 0; background: var(--go); transition: width .25s linear; }
   .bar > i.warn { background: var(--warn); }
   .bar > i.over { background: var(--over); }
-  .row-foot { grid-column: 1 / -1; display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
-  .used { color: var(--muted); font-size: 13.5px; font-variant-numeric: tabular-nums; }
-  button { font: inherit; font-weight: 600; cursor: pointer; border: 0; border-radius: 7px; padding: 9px 18px; color: #fff; background: var(--btn); min-width: 96px; }
+  button { font: inherit; font-weight: 600; font-size: 13px; cursor: pointer; border: 0; border-radius: 6px; padding: 6px 12px; color: #fff; background: var(--btn); min-width: 62px; }
   button:hover { filter: brightness(1.15); }
   button.start { background: #2f7f66; }
   button.stop { background: #a8403f; }
-  button.ghost { background: transparent; border: 1px solid var(--line); color: var(--muted); font-weight: 400; min-width: 0; padding: 7px 12px; }
+  button.ghost { background: transparent; border: 1px solid var(--line); color: var(--muted); font-weight: 400; min-width: 0; padding: 4px 10px; font-size: 12px; }
+  button.x { background: transparent; color: var(--muted); min-width: 0; padding: 0 6px; font-size: 16px; line-height: 1; }
   :focus-visible { outline: 2px solid var(--go); outline-offset: 2px; }
 
-  /* Log */
-  h2 { font-size: 16px; margin: 34px 0 8px; font-weight: 800; }
-  .log { list-style: none; margin: 0; padding: 0; font-size: 14px; }
-  .log li { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--line); font-variant-numeric: tabular-nums; }
+  /* Paste + log */
+  details { margin-top: 10px; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 0 10px; }
+  summary { cursor: pointer; font-weight: 800; padding: 8px 0; font-size: 13px; }
+  details[open] summary { border-bottom: 1px solid var(--line); margin-bottom: 8px; }
+  details > div { padding-bottom: 10px; }
+  textarea { width: 100%; min-height: 84px; resize: vertical; font-size: 12.5px; }
+  .help { color: var(--muted); font-size: 12px; margin: 0 0 6px; }
+  .actions { display: flex; gap: 8px; margin-top: 6px; flex-wrap: wrap; }
+  .parsed { margin-top: 8px; font-size: 12.5px; }
+  .parsed label { display: flex; gap: 8px; align-items: flex-start; padding: 4px 0; border-bottom: 1px solid var(--line); }
+  .parsed .bad { color: var(--warn); padding: 4px 0; }
+  .parsed .amt { margin-left: auto; font-family: var(--num); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .log { list-style: none; margin: 0; padding: 0; font-size: 12.5px; }
+  .log li { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 4px 0; border-bottom: 1px solid var(--line); font-variant-numeric: tabular-nums; }
+  .log li span:first-child { flex: 1; }
   .log .empty { color: var(--muted); border: 0; }
-  .bottom { margin-top: 26px; display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
-  .note { color: var(--muted); font-size: 13px; }
+  .bottom { margin-top: 10px; display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+  .note { color: var(--muted); font-size: 11.5px; }
 
-  @media (max-width: 480px) {
-    .row { grid-template-columns: 1fr; }
-    .row-left { text-align: left; }
+  @media (max-width: 380px) {
+    .row { grid-template-columns: 1fr auto; }
+    .row-left { grid-column: 1; text-align: left; grid-row: 2; }
+    button.start, button.stop { grid-row: 1 / span 2; grid-column: 2; }
   }
   @media (prefers-reduced-motion: reduce) { .bar > i { transition: none; } }
 </style>
@@ -87,11 +102,13 @@
 <div class="wrap">
 
   <header class="clock">
-    <div class="site-name">Daily Tracker</div>
-    <div class="clock-time" id="clock">--:--:--<small id="ampm"></small></div>
-    <div class="clock-date" id="date"></div>
+    <div class="clock-top">
+      <span class="site-name">Daily Tracker</span>
+      <span class="clock-date" id="date"></span>
+    </div>
+    <div class="clock-time"><span id="t">--:--:--</span><small id="ampm"></small></div>
     <div class="settings">
-      <label>Hours in your shift
+      <label>Shift hours
         <input type="number" id="hours" min="1" max="24" step="0.5" value="8">
       </label>
       <label>Lunch
@@ -106,19 +123,34 @@
   <section class="now" id="now" aria-live="polite">
     <div>
       <div class="now-name" id="nowName">Not on a status</div>
-      <div class="now-sub" id="nowSub">Pick a status below to start its timer.</div>
+      <div class="now-sub" id="nowSub">Tap Start on a status below.</div>
     </div>
     <div class="now-time" id="nowTime">0:00</div>
   </section>
 
   <main id="rows"></main>
 
-  <h2>Today's log</h2>
-  <ul class="log" id="log"></ul>
+  <details id="pasteBox">
+    <summary>Forgot to start a timer? Paste from Slack</summary>
+    <div>
+      <p class="help">Paste your status lines, for example: <b>Restroom 1:05 PM - 1:12 PM</b> or <b>Other Break 15 mins</b>. One status per line.</p>
+      <textarea id="pasteText" placeholder="Restroom 1:05 PM - 1:12 PM&#10;Other Break 2:30 PM - 2:45 PM&#10;Technical Issue 6 mins"></textarea>
+      <div class="actions">
+        <button type="button" id="readBtn">Read text</button>
+        <button type="button" id="addBtn" class="start" style="display:none">Deduct from today</button>
+      </div>
+      <div class="parsed" id="parsed"></div>
+    </div>
+  </details>
+
+  <details>
+    <summary>Today's log</summary>
+    <div><ul class="log" id="log"></ul></div>
+  </details>
 
   <div class="bottom">
     <button class="ghost" id="reset">Reset today</button>
-    <span class="note">Everything resets automatically at 12:00 AM Eastern. Data stays in this browser only.</span>
+    <span class="note">Resets automatically at 12:00 AM Eastern. Saved in this browser only.</span>
   </div>
 </div>
 
@@ -139,32 +171,32 @@
   var STATUSES = [
     { id: "other", name: "Other Break", mode: "pool",
       limit: function (s) { return otherBreakCount(s.hours) * 15 * MIN; },
-      rule:  function (s) { var n = otherBreakCount(s.hours); return n + " × 15 min break" + (n > 1 ? "s" : "") + " for " + s.hours + "h worked"; } },
+      rule:  function (s) { var n = otherBreakCount(s.hours); return n + " × 15 min for " + s.hours + "h worked"; } },
     { id: "restroom", name: "Restroom", mode: "pool",
       limit: function (s) { return restroomMins(s.hours) * MIN; },
       rule:  function (s) { return restroomMins(s.hours) + " min total for " + s.hours + "h worked"; } },
     { id: "tech", name: "Technical Issue", mode: "pool",
       limit: function () { return 15 * MIN; },
-      rule:  function () { return "15 min for a regular shift"; } },
+      rule:  function () { return "15 min per regular shift"; } },
     { id: "moretime", name: "Need More Time", mode: "pool",
       limit: function () { return 20 * MIN; },
-      rule:  function () { return "20 min for a regular shift"; } },
+      rule:  function () { return "20 min per regular shift"; } },
     { id: "callback", name: "Call Back", mode: "perUse",
       limit: function () { return 5 * MIN; },
-      rule:  function () { return "Max 5 min difference between the actual call back and when you went on this status (each time)"; } },
+      rule:  function () { return "Max 5 min gap vs. the actual call back (each time)"; } },
     { id: "loli", name: "LOLI", mode: "pool",
       limit: function () { return 5 * MIN; },
-      rule:  function () { return "5 min per regular 8h shift, or when Eng advises it for updates"; } },
+      rule:  function () { return "5 min per 8h shift, or when Eng says so"; } },
     { id: "lunch", name: "Lunch", mode: "pool",
       limit: function (s) { return s.lunchMin * MIN; },
-      rule:  function (s) { return s.lunchMin + " min, approved by a team lead (make up the time before or after shift)"; } }
+      rule:  function (s) { return s.lunchMin + " min, team lead approval, make up the time"; } }
   ];
 
   /* ---------- Time helpers ---------- */
   var timeFmt = new Intl.DateTimeFormat("en-US", { timeZone: TZ, hour: "numeric", minute: "2-digit", second: "2-digit", hour12: true });
-  var longDateFmt = new Intl.DateTimeFormat("en-US", { timeZone: TZ, weekday: "long", month: "long", day: "numeric", year: "numeric" });
+  var dateFmt = new Intl.DateTimeFormat("en-US", { timeZone: TZ, weekday: "short", month: "short", day: "numeric", year: "numeric" });
   var keyFmt = new Intl.DateTimeFormat("en-CA", { timeZone: TZ, year: "numeric", month: "2-digit", day: "2-digit" });
-  var shortFmt = new Intl.DateTimeFormat("en-US", { timeZone: TZ, hour: "numeric", minute: "2-digit", second: "2-digit", hour12: true });
+  var shortFmt = new Intl.DateTimeFormat("en-US", { timeZone: TZ, hour: "numeric", minute: "2-digit", hour12: true });
   var zoneFmt = new Intl.DateTimeFormat("en-US", { timeZone: TZ, timeZoneName: "short" });
 
   function etKey(ms) { return keyFmt.format(ms); }
@@ -189,7 +221,7 @@
       lunchMin: prev ? prev.lunchMin : 30,
       used: {},        // seconds completed per status id
       active: null,    // { id, start }
-      log: []          // { id, start, end }
+      log: []          // { id, start, end }  or  { id, sec, text } for pasted entries
     };
   }
   var state;
@@ -200,6 +232,7 @@
   function byId(id) { for (var i = 0; i < STATUSES.length; i++) if (STATUSES[i].id === id) return STATUSES[i]; }
   function elapsed(id) { return state.active && state.active.id === id ? (Date.now() - state.active.start) / 1000 : 0; }
   function usedTotal(id) { return (state.used[id] || 0) + elapsed(id); }
+  function entrySec(e) { return typeof e.sec === "number" ? e.sec : (e.end - e.start) / 1000; }
 
   function stopActive() {
     if (!state.active) return;
@@ -238,11 +271,13 @@
     var row = document.createElement("section");
     row.className = "row";
     row.innerHTML =
-      '<div><div class="row-name"></div></div>' +
+      '<div class="info">' +
+        '<div class="row-head"><span class="row-name"></span><span class="used"></span></div>' +
+        '<div class="row-rule"></div>' +
+      '</div>' +
       '<div class="row-left">0:00</div>' +
-      '<div class="row-rule"></div>' +
-      '<div class="bar"><i></i></div>' +
-      '<div class="row-foot"><span class="used"></span><button type="button" class="start">Start</button></div>';
+      '<button type="button" class="start">Start</button>' +
+      '<div class="bar"><i></i></div>';
     row.querySelector(".row-name").textContent = st.name;
     row.querySelector("button").addEventListener("click", function () { startStatus(st.id); });
     rowsEl.appendChild(row);
@@ -256,7 +291,7 @@
     };
   });
 
-  var $clock = document.getElementById("clock"), $date = document.getElementById("date");
+  var $t = document.getElementById("t"), $ampm = document.getElementById("ampm"), $date = document.getElementById("date");
   var $now = document.getElementById("now"), $nowName = document.getElementById("nowName");
   var $nowSub = document.getElementById("nowSub"), $nowTime = document.getElementById("nowTime");
   var $hours = document.getElementById("hours"), $lunch = document.getElementById("lunchLen");
@@ -271,22 +306,143 @@
     if (confirm("Clear all of today's timers and log?")) { state = fresh(state); alerted = {}; save(); renderLog(); tick(); }
   });
 
-  /* ---------- Render ---------- */
+  /* ---------- Log (with remove buttons) ---------- */
   function renderLog() {
     var ul = document.getElementById("log");
     ul.innerHTML = "";
     if (!state.log.length) {
-      var li = document.createElement("li"); li.className = "empty"; li.textContent = "Nothing logged yet today."; ul.appendChild(li); return;
+      var li0 = document.createElement("li"); li0.className = "empty"; li0.textContent = "Nothing logged yet today."; ul.appendChild(li0); return;
     }
-    state.log.slice().reverse().forEach(function (e) {
-      var li = document.createElement("li");
-      var l = document.createElement("span"), r = document.createElement("span");
-      l.textContent = byId(e.id).name + "  (" + shortFmt.format(e.start) + " to " + shortFmt.format(e.end) + ")";
-      r.textContent = mmss((e.end - e.start) / 1000);
-      li.appendChild(l); li.appendChild(r); ul.appendChild(li);
-    });
+    for (var i = state.log.length - 1; i >= 0; i--) {
+      (function (idx) {
+        var e = state.log[idx];
+        var li = document.createElement("li");
+        var l = document.createElement("span"), r = document.createElement("span"), x = document.createElement("button");
+        l.textContent = byId(e.id).name + "  (" + (e.text ? e.text + ", pasted" : shortFmt.format(e.start) + " to " + shortFmt.format(e.end)) + ")";
+        r.textContent = mmss(entrySec(e));
+        x.type = "button"; x.className = "x"; x.textContent = "×"; x.title = "Remove this entry and give the time back";
+        x.addEventListener("click", function () {
+          state.used[e.id] = Math.max(0, (state.used[e.id] || 0) - entrySec(e));
+          state.log.splice(idx, 1);
+          save(); renderLog(); tick();
+        });
+        li.appendChild(l); li.appendChild(r); li.appendChild(x); ul.appendChild(li);
+      })(i);
+    }
   }
 
+  /* ---------- Paste from Slack ---------- */
+  var ALIASES = [
+    ["lunch", /\blunch\b/i],
+    ["loli", /\bloli\b/i],
+    ["callback", /call\s*-?\s*back/i],
+    ["moretime", /more\s*time/i],
+    ["tech", /\btech(nical)?\b/i],
+    ["restroom", /rest\s*-?\s*room|\brr\b|bathroom/i],
+    ["other", /other\s*break|\bbreak\b/i]
+  ];
+  var T = "(\\d{1,2})(?::(\\d{2}))?(?::(\\d{2}))?\\s*([ap]\\.?m\\.?)?";
+  var RANGE = new RegExp(T + "\\s*(?:-|–|—|to|until|till)\\s*" + T, "i");
+  var DUR = /(\d+(?:\.\d+)?)\s*(hours?|hrs?|h|minutes?|mins?|m|seconds?|secs?|s)\b/i;
+
+  function findStatus(line) {
+    for (var i = 0; i < ALIASES.length; i++) if (ALIASES[i][1].test(line)) return ALIASES[i][0];
+    return null;
+  }
+  function meridiem(x) { return x ? (x.toLowerCase().charAt(0) === "p" ? "p" : "a") : null; }
+  function secOfDay(h, m, s, mer) {
+    h = parseInt(h, 10); m = parseInt(m || "0", 10); s = parseInt(s || "0", 10);
+    if (mer) { h = h % 12; if (mer === "p") h += 12; }
+    return h * 3600 + m * 60 + s;
+  }
+  function readLine(line) {
+    var id = findStatus(line);
+    var r = line.match(RANGE);
+    if (r) {
+      var hasClue = /[:]/.test(r[0]) || r[4] || r[8];
+      if (hasClue) {
+        var m1 = meridiem(r[4]), m2 = meridiem(r[8]);
+        var a, b, d;
+        if (m1 || m2) {
+          m1 = m1 || m2; m2 = m2 || m1;
+          a = secOfDay(r[1], r[2], r[3], m1); b = secOfDay(r[5], r[6], r[7], m2);
+          d = b - a; if (d < 0) d += 86400;
+        } else {
+          a = (parseInt(r[1], 10) % 12) * 3600 + parseInt(r[2] || "0", 10) * 60 + parseInt(r[3] || "0", 10);
+          b = (parseInt(r[5], 10) % 12) * 3600 + parseInt(r[6] || "0", 10) * 60 + parseInt(r[7] || "0", 10);
+          d = b - a; if (d < 0) d += 43200;
+        }
+        if (d > 0) return { id: id, sec: d, text: r[0].replace(/\s+/g, " ").trim(), line: line };
+      }
+    }
+    var u = line.match(DUR);
+    if (u) {
+      var n = parseFloat(u[1]), unit = u[2].toLowerCase().charAt(0), sec;
+      sec = unit === "h" ? n * 3600 : unit === "m" ? n * 60 : n;
+      if (sec > 0) return { id: id, sec: Math.round(sec), text: u[0].trim(), line: line };
+    }
+    return { id: id, sec: 0, line: line };
+  }
+
+  var pending = [];
+  var $parsed = document.getElementById("parsed"), $addBtn = document.getElementById("addBtn");
+  document.getElementById("readBtn").addEventListener("click", function () {
+    var lines = document.getElementById("pasteText").value.split(/\r?\n/);
+    pending = []; $parsed.innerHTML = "";
+    lines.forEach(function (raw) {
+      var line = raw.trim();
+      if (!line) return;
+      var item = readLine(line);
+      if (!item.id && !item.sec) return; // ignore lines with nothing useful (names, chatter)
+      if (item.id && item.sec) {
+        pending.push(item);
+      } else {
+        var bad = document.createElement("div");
+        bad.className = "bad";
+        bad.textContent = "Couldn't read: " + line + (item.id ? "  (no time found)" : "  (no status name found)");
+        $parsed.appendChild(bad);
+      }
+    });
+    pending.forEach(function (item, i) {
+      var lab = document.createElement("label");
+      var cb = document.createElement("input");
+      cb.type = "checkbox"; cb.checked = item.sec <= 7200; cb.dataset.i = i;
+      var t = document.createElement("span");
+      t.textContent = byId(item.id).name + "  (" + item.text + ")";
+      var amt = document.createElement("span");
+      amt.className = "amt"; amt.textContent = mmss(item.sec) + (item.sec > 7200 ? "  check this" : "");
+      lab.appendChild(cb); lab.appendChild(t); lab.appendChild(amt);
+      $parsed.appendChild(lab);
+    });
+    if (!pending.length && !$parsed.children.length) {
+      var none = document.createElement("div");
+      none.className = "bad"; none.textContent = "Nothing to read yet. Paste at least one line with a status and a time.";
+      $parsed.appendChild(none);
+    }
+    $addBtn.style.display = pending.length ? "" : "none";
+  });
+  $addBtn.addEventListener("click", function () {
+    var boxes = $parsed.querySelectorAll("input[type=checkbox]");
+    var added = 0;
+    for (var i = 0; i < boxes.length; i++) {
+      if (!boxes[i].checked) continue;
+      var it = pending[parseInt(boxes[i].dataset.i, 10)];
+      state.used[it.id] = (state.used[it.id] || 0) + it.sec;
+      state.log.push({ id: it.id, sec: it.sec, text: it.text });
+      added++;
+    }
+    if (added) {
+      save(); renderLog(); tick();
+      document.getElementById("pasteText").value = "";
+      pending = []; $parsed.innerHTML = "";
+      var ok = document.createElement("div");
+      ok.className = "help"; ok.textContent = "Done. Deducted " + added + " entr" + (added === 1 ? "y" : "ies") + " from today.";
+      $parsed.appendChild(ok);
+      $addBtn.style.display = "none";
+    }
+  });
+
+  /* ---------- Main tick ---------- */
   function tick() {
     var now = Date.now();
 
@@ -300,10 +456,9 @@
     parts.forEach(function (p) {
       if (p.type === "dayPeriod") ap = p.value; else if (p.type !== "literal" || t) t += p.value;
     });
-    t = t.trim();
-    $clock.firstChild.nodeValue = t;
-    document.getElementById("ampm").textContent = ap + " " + zoneName(now);
-    $date.textContent = longDateFmt.format(now);
+    $t.textContent = t.trim();
+    $ampm.textContent = ap + " " + zoneName(now);
+    $date.textContent = dateFmt.format(now);
 
     var activeInfo = null;
 
@@ -314,17 +469,16 @@
       var shown, usedForBar;
 
       if (st.mode === "perUse") {
-        // Limit applies to the current use only
         var cur = elapsed(st.id);
         usedForBar = cur;
         shown = limit - cur;
         r.left.textContent = isActive ? (shown >= 0 ? mmss(shown) : "+" + mmss(-shown)) : mmss(limit);
-        r.used.textContent = "Total today: " + mmss(usedTotal(st.id));
+        r.used.textContent = "total today " + mmss(usedTotal(st.id));
       } else {
         usedForBar = usedTotal(st.id);
         shown = limit - usedForBar;
         r.left.textContent = shown >= 0 ? mmss(shown) : "+" + mmss(-shown);
-        r.used.textContent = "Used " + mmss(usedForBar) + " of " + mmss(limit);
+        r.used.textContent = "used " + mmss(usedForBar) + " of " + mmss(limit);
       }
 
       var over = isActive || st.mode === "pool" ? shown < 0 : false;
@@ -344,18 +498,17 @@
       }
     });
 
-    // Banner + tab title
     if (activeInfo) {
       var a = activeInfo;
       $now.className = "now running" + (a.over ? " over" : "");
       $nowName.textContent = a.st.name;
-      $nowSub.textContent = a.over ? "Over your limit" : (a.st.mode === "perUse" ? "Time left on this call back" : "Time left today");
+      $nowSub.textContent = a.over ? "Over your limit" : (a.st.mode === "perUse" ? "Left on this call back" : "Left today");
       $nowTime.textContent = a.over ? "+" + mmss(-a.shown) : mmss(a.shown);
       document.title = (a.over ? "+" + mmss(-a.shown) : mmss(a.shown)) + " · " + a.st.name;
     } else {
       $now.className = "now";
       $nowName.textContent = "Not on a status";
-      $nowSub.textContent = "Pick a status below to start its timer.";
+      $nowSub.textContent = "Tap Start on a status below.";
       $nowTime.textContent = "0:00";
       document.title = "Daily Tracker";
     }
