@@ -90,6 +90,17 @@
   .bottom { margin-top: 10px; display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
   .note { color: var(--muted); font-size: 11.5px; }
 
+  /* Manual time edit */
+  .row-head .edit { padding: 0 7px; font-size: 11px; min-width: 0; border-radius: 4px; }
+  .warnbox { margin-top: 10px; padding: 10px 12px; border: 1px solid var(--warn); border-radius: 8px; background: rgba(242, 182, 75, .08); font-size: 13px; }
+  .warnbox p { margin: 6px 0 0; }
+  .ed-label { display: block; margin-top: 12px; font-weight: 600; font-size: 13px; }
+  .ed-inputs { display: flex; align-items: center; gap: 6px; margin-top: 6px; }
+  .ed-inputs input { width: 70px; font-family: var(--num); font-size: 15px; padding: 5px 8px; }
+  .ed-preview { margin-top: 8px; color: var(--muted); font-size: 12.5px; min-height: 18px; }
+  .ed-preview.bad { color: var(--warn); }
+  .ov-actions { gap: 8px; }
+
   /* Other Break plan */
   .plan { margin-top: 8px; padding: 8px 10px; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; }
   .plan-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; flex-wrap: wrap; font-size: 13px; }
@@ -221,6 +232,28 @@
   </div>
 </div>
 
+<div class="overlay" id="editBox" role="dialog" aria-modal="true" aria-labelledby="edTitle">
+  <div class="sheet">
+    <h2 id="edTitle">Edit time</h2>
+    <div class="sub" id="edSub"></div>
+    <div id="edWarn">
+      <div class="warnbox">
+        <b>Please read before you continue</b>
+        <p>Changing this time changes how much time you have left today. It also changes your shift overview, which your team lead may ask to see.</p>
+        <p>Only edit it to fix a mistake, for example a break you forgot to log or one that was logged twice.</p>
+        <p>The change is added to Today's log as "time edited by you". Press the × next to it there to undo it.</p>
+      </div>
+      <div class="ov-actions"><button type="button" class="ghost" id="edCancel1">Cancel</button><button type="button" class="stop" id="edContinue">I understand, continue</button></div>
+    </div>
+    <div id="edForm" style="display:none">
+      <label class="ed-label" id="edLabel" for="edMin"></label>
+      <div class="ed-inputs"><input type="number" id="edMin" min="0" step="1" inputmode="numeric"> <span>min</span> <input type="number" id="edSec" min="0" max="59" step="1" inputmode="numeric"> <span>sec</span></div>
+      <div class="ed-preview" id="edPreview"></div>
+      <div class="ov-actions"><button type="button" class="ghost" id="edCancel2">Cancel</button><button type="button" class="start" id="edSave">Save change</button></div>
+    </div>
+  </div>
+</div>
+
 <script>
 (function () {
   "use strict";
@@ -256,7 +289,13 @@
       rule:  function () { return "5 min per 8h shift, or when Eng says so"; } },
     { id: "lunch", name: "Lunch", mode: "pool",
       limit: function (s) { return s.lunchMin * MIN; },
-      rule:  function (s) { return s.lunchMin + " min, team lead approval, make up the time"; } }
+      rule:  function (s) { return s.lunchMin + " min, team lead approval, make up the time"; } },
+    { id: "meeting", name: "Meeting", mode: "track",
+      limit: function () { return 0; },
+      rule:  function () { return "No limit. Tracked for your overview."; } },
+    { id: "logout", name: "Log Out / Log In", mode: "track",
+      limit: function () { return 0; },
+      rule:  function () { return "No limit. Tracked for your overview."; } }
   ];
 
   /* ---------- Time helpers ---------- */
@@ -301,6 +340,7 @@
   function byId(id) { for (var i = 0; i < STATUSES.length; i++) if (STATUSES[i].id === id) return STATUSES[i]; }
   function elapsed(id) { return state.active && state.active.id === id ? (Date.now() - state.active.start) / 1000 : 0; }
   function usedTotal(id) { return (state.used[id] || 0) + elapsed(id); }
+  function sgn(sec) { return sec < 0 ? "-" + mmss(-sec) : mmss(sec); }
   function entrySec(e) { return typeof e.sec === "number" ? e.sec : (e.end - e.start) / 1000; }
 
   function stopActive() {
@@ -407,14 +447,15 @@
     row.className = "row";
     row.innerHTML =
       '<div class="info">' +
-        '<div class="row-head"><span class="row-name"></span><span class="used"></span></div>' +
+        '<div class="row-head"><span class="row-name"></span><span class="used"></span><button type="button" class="ghost edit" title="Fix the time for this status">Edit</button></div>' +
         '<div class="row-rule"></div>' +
       '</div>' +
       '<div class="row-left">0:00</div>' +
       '<button type="button" class="start">Start</button>' +
       '<div class="bar"><i></i></div>';
     row.querySelector(".row-name").textContent = st.name;
-    row.querySelector("button").addEventListener("click", function () { startStatus(st.id); });
+    row.querySelector("button.start").addEventListener("click", function () { startStatus(st.id); });
+    row.querySelector("button.edit").addEventListener("click", function () { openEdit(st.id); });
     rowsEl.appendChild(row);
     refs[st.id] = {
       row: row,
@@ -422,7 +463,7 @@
       left: row.querySelector(".row-left"),
       bar: row.querySelector(".bar > i"),
       used: row.querySelector(".used"),
-      btn: row.querySelector("button")
+      btn: row.querySelector("button.start")
     };
   });
 
@@ -453,8 +494,8 @@
         var e = state.log[idx];
         var li = document.createElement("li");
         var l = document.createElement("span"), r = document.createElement("span"), x = document.createElement("button");
-        l.textContent = byId(e.id).name + "  (" + (e.text ? e.text + ", pasted" : shortFmt.format(e.start) + " to " + shortFmt.format(e.end)) + ")";
-        r.textContent = mmss(entrySec(e));
+        l.textContent = byId(e.id).name + "  (" + (e.manual ? "time edited by you" : e.text ? e.text + ", pasted" : shortFmt.format(e.start) + " to " + shortFmt.format(e.end)) + ")";
+        r.textContent = e.manual ? (entrySec(e) >= 0 ? "+" : "") + sgn(entrySec(e)) : mmss(entrySec(e));
         x.type = "button"; x.className = "x"; x.textContent = "×"; x.title = "Remove this entry and give the time back";
         x.addEventListener("click", function () {
           state.used[e.id] = Math.max(0, (state.used[e.id] || 0) - entrySec(e));
@@ -470,7 +511,9 @@
   var ALIASES = [
     ["lunch", /\blunch\b/i],
     ["loli", /\bloli\b/i],
-    ["callback", /call\s*-?\s*back/i],
+    ["callback", /call(?:ing)?\s*-?\s*back/i],
+    ["meeting", /\bmeetings?\b|\bmtg\b|\bhuddle\b/i],
+    ["logout", /\blog\s*-?\s*(?:out|in)\b|\blogout\b|\blogin\b/i],
     ["moretime", /more\s*time/i],
     ["tech", /\btech(nical)?\b/i],
     ["restroom", /rest\s*-?\s*room|\brr\b|bathroom/i],
@@ -539,7 +582,7 @@
       if (m[10].toUpperCase() === "PM") h += 12;
       var y = parseInt(m[6], 10), mo = parseInt(m[4], 10), da = parseInt(m[5], 10);
       ev.push({
-        who: m[1].replace(/^.*\bago\b\s*/i, "").trim(),
+        who: m[1].replace(/^.*?(?:\bago\b|\[\d{1,2}:\d{2}\s*[AP]M\]|\bat\s+\d{1,2}:\d{2}\s*[AP]M)\s*/i, "").trim(),
         kind: m[2].toLowerCase(),
         status: m[3],
         t: Date.UTC(y, mo - 1, da, h, parseInt(m[8], 10), parseInt(m[9] || "0", 10)),
@@ -562,12 +605,11 @@
         if (!open) return; // online with no matching offline (e.g. start of shift)
         var sec = Math.round((e.t - open.t) / 1000);
         var id = findStatus(open.status);
-        if (!id) {
-          out.notes.push(who + ": couldn't tell the status for the offline at " + fmtClock(open.t) + " (" + open.status.replace(/[()]/g, "").trim() + ").");
-        } else if (sec > 0) {
+        if (sec > 0) {
           var key = who + "|" + open.t;
           out.entries.push({
             id: id, sec: sec, who: who, key: key,
+            tag: open.status.replace(/[()]/g, "").trim(),
             text: fmtClock(open.t) + " to " + fmtClock(e.t),
             dup: state.log.some(function (l) { return l.key === key; }),
             old: open.day !== state.date
@@ -575,7 +617,7 @@
         }
         open = null;
       });
-      if (open) out.notes.push(who + " is still offline since " + fmtClock(open.t) + " (no online message yet). Use the Start button for that one.");
+      if (open) out.notes.push(who + " is still offline since " + fmtClock(open.t) + " (" + (open.status.replace(/[()]/g, "").trim() || "no tag") + "), with no online message yet. Paste again once the online message shows up, or use Start for that status.");
     });
     return out;
   }
@@ -629,11 +671,19 @@
       var cb = document.createElement("input");
       cb.type = "checkbox"; cb.dataset.i = i;
       var t = document.createElement("span");
-      t.textContent = byId(item.id).name + "  (" + item.text + ")" + (names.length === 1 ? "  " + item.who : "");
+      t.textContent = (item.id ? byId(item.id).name : "Unknown tag: " + (item.tag || "none")) + "  (" + item.text + ")" + (names.length === 1 ? "  " + item.who : "");
       var flag = item.dup ? "  already added" : item.old ? "  not today" : item.sec > 7200 ? "  check this" : "";
       var amt = document.createElement("span");
       amt.className = "amt"; amt.textContent = mmss(item.sec) + flag;
-      lab.appendChild(cb); lab.appendChild(t); lab.appendChild(amt);
+      lab.appendChild(cb); lab.appendChild(t);
+      if (!item.id) {
+        var ps = document.createElement("select");
+        var o0 = document.createElement("option"); o0.value = ""; o0.textContent = "Pick a status"; ps.appendChild(o0);
+        STATUSES.forEach(function (st) { var o = document.createElement("option"); o.value = st.id; o.textContent = st.name; ps.appendChild(o); });
+        ps.addEventListener("change", function () { item.pick = ps.value; cb.checked = !!ps.value && !item.dup && !item.old; });
+        lab.appendChild(ps);
+      }
+      lab.appendChild(amt);
       $parsed.appendChild(lab);
       rows.push({ item: item, cb: cb, lab: lab });
     });
@@ -641,7 +691,7 @@
       rows.forEach(function (r) {
         var mine = !sel || r.item.who === sel.value;
         r.lab.style.display = mine ? "" : "none";
-        r.cb.checked = mine && !r.item.dup && !r.item.old && r.item.sec <= 7200;
+        r.cb.checked = mine && !r.item.dup && !r.item.old && r.item.sec <= 7200 && !!(r.item.id || r.item.pick);
       });
     }
     if (sel) sel.addEventListener("change", applyWho);
@@ -659,8 +709,10 @@
     for (var i = 0; i < boxes.length; i++) {
       if (!boxes[i].checked) continue;
       var it = pending[parseInt(boxes[i].dataset.i, 10)];
-      state.used[it.id] = (state.used[it.id] || 0) + it.sec;
-      state.log.push({ id: it.id, sec: it.sec, text: it.text, key: it.key });
+      var sid = it.id || it.pick;
+      if (!sid) continue;
+      state.used[sid] = (state.used[sid] || 0) + it.sec;
+      state.log.push({ id: sid, sec: it.sec, text: it.text, key: it.key });
       added++;
     }
     if (added) {
@@ -672,6 +724,74 @@
       $parsed.appendChild(ok);
       $addBtn.style.display = "none";
     }
+  });
+
+  /* ---------- Manual time edit (with warning first) ---------- */
+  var $ed = document.getElementById("editBox"), edId = null;
+  var $edMin = document.getElementById("edMin"), $edSec = document.getElementById("edSec"), $edPrev = document.getElementById("edPreview");
+  var $edSave = document.getElementById("edSave");
+  function edDesired() {
+    var m = parseInt($edMin.value || "0", 10), s = parseInt($edSec.value || "0", 10);
+    if (!isFinite(m) || !isFinite(s) || m < 0 || s < 0 || s > 59) return null;
+    return m * 60 + s;
+  }
+  function edDelta(desired) {
+    var st = byId(edId), cur = usedTotal(edId);
+    return st.mode === "pool" ? (st.limit(state) - desired) - cur : desired - cur;
+  }
+  function edRefresh() {
+    var st = byId(edId), d = edDesired(), cur = usedTotal(edId), limit = st.limit(state);
+    var max = st.mode === "pool" ? limit : 86400;
+    $edPrev.className = "ed-preview";
+    $edSave.disabled = true;
+    if (d === null) { $edPrev.textContent = "Enter whole minutes and seconds (seconds 0 to 59)."; $edPrev.className = "ed-preview bad"; return; }
+    if (d > max) { $edPrev.textContent = "That is more than the full " + mmss(max) + " allowance."; $edPrev.className = "ed-preview bad"; return; }
+    var delta = edDelta(d);
+    if (Math.abs(delta) < 1) { $edPrev.textContent = "No change from the current time."; return; }
+    var now = st.mode === "pool" ? limit - cur : cur;
+    var label = st.mode === "pool" ? "Time left" : "Total time";
+    var diff = st.mode === "pool" ? -delta : delta;
+    $edPrev.textContent = label + ": " + sgn(now) + " to " + mmss(d) + ". " + (st.mode === "pool"
+      ? (diff > 0 ? "This gives you " + mmss(diff) + " more time left." : "This takes away " + mmss(-diff) + " of your time left.")
+      : (diff > 0 ? "This adds " + mmss(diff) + " to your total." : "This removes " + mmss(-diff) + " from your total."));
+    $edSave.disabled = false;
+  }
+  function openEdit(id) {
+    edId = id;
+    var st = byId(id);
+    document.getElementById("edSub").textContent = st.name;
+    document.getElementById("edWarn").style.display = "";
+    document.getElementById("edForm").style.display = "none";
+    $ed.classList.add("open"); $ed.scrollTop = 0;
+    document.getElementById("edContinue").focus();
+  }
+  function closeEdit() { $ed.classList.remove("open"); edId = null; }
+  document.getElementById("edContinue").addEventListener("click", function () {
+    var st = byId(edId), cur = usedTotal(edId);
+    var start = st.mode === "pool" ? Math.max(0, Math.round(st.limit(state) - cur)) : Math.round(cur);
+    $edMin.value = Math.floor(start / 60); $edSec.value = start % 60;
+    document.getElementById("edLabel").textContent = st.mode === "pool"
+      ? "Time left for " + st.name + " today"
+      : "Total time on " + st.name + " today";
+    document.getElementById("edWarn").style.display = "none";
+    document.getElementById("edForm").style.display = "";
+    edRefresh(); $edMin.focus(); $edMin.select();
+  });
+  $edMin.addEventListener("input", edRefresh); $edSec.addEventListener("input", edRefresh);
+  document.getElementById("edCancel1").addEventListener("click", closeEdit);
+  document.getElementById("edCancel2").addEventListener("click", closeEdit);
+  $ed.addEventListener("click", function (e) { if (e.target === $ed) closeEdit(); });
+  $edSave.addEventListener("click", function () {
+    var d = edDesired();
+    if (d === null) return;
+    var delta = edDelta(d);
+    if (Math.abs(delta) >= 1) {
+      state.used[edId] = (state.used[edId] || 0) + delta;
+      state.log.push({ id: edId, sec: delta, text: "manual edit", manual: true });
+      alerted = {};
+      save(); renderLog(); tick();
+    }
+    closeEdit();
   });
 
   /* ---------- Other Break plan ---------- */
@@ -777,7 +897,9 @@
     $ovBody.appendChild(el("h3", null, "Statuses"));
     STATUSES.forEach(function (st) {
       var used = state.used[st.id] || 0, limit = st.limit(state), over, badge;
-      if (st.mode === "perUse") {
+      if (st.mode === "track") {
+        over = false; badge = used ? "tracked" : "-";
+      } else if (st.mode === "perUse") {
         var count = 0, bad = 0;
         state.log.forEach(function (e) { if (e.id === st.id) { count++; if (entrySec(e) > limit) bad++; } });
         over = bad > 0;
@@ -788,7 +910,7 @@
       }
       var row = el("div", "ov-row");
       row.appendChild(el("span", "n", st.name));
-      row.appendChild(el("span", "v", st.mode === "perUse" ? mmss(used) + " (max " + mmss(limit) + " each)" : mmss(used) + " / " + mmss(limit)));
+      row.appendChild(el("span", "v", st.mode === "track" ? mmss(used) : st.mode === "perUse" ? mmss(used) + " (max " + mmss(limit) + " each)" : mmss(used) + " / " + mmss(limit)));
       row.appendChild(el("span", "b" + (over ? " over" : ""), badge));
       $ovBody.appendChild(row);
     });
@@ -800,7 +922,7 @@
       state.log.forEach(function (e) {
         var row = el("div", "ov-row plain");
         row.appendChild(el("span", "n", byId(e.id).name + "  (" + (e.text ? e.text : shortFmt.format(e.start) + " to " + shortFmt.format(e.end)) + ")"));
-        row.appendChild(el("span", "v", mmss(entrySec(e))));
+        row.appendChild(el("span", "v", e.manual ? (entrySec(e) >= 0 ? "+" : "") + sgn(entrySec(e)) : mmss(entrySec(e))));
         $ovBody.appendChild(row);
       });
     }
@@ -813,7 +935,7 @@
   document.getElementById("logout").addEventListener("click", showOverview);
   document.getElementById("ovClose").addEventListener("click", closeOverview);
   $ov.addEventListener("click", function (e) { if (e.target === $ov) closeOverview(); });
-  document.addEventListener("keydown", function (e) { if (e.key === "Escape") closeOverview(); });
+  document.addEventListener("keydown", function (e) { if (e.key === "Escape") { closeOverview(); closeEdit(); } });
 
   /* ---------- Main tick ---------- */
   function tick() {
@@ -848,6 +970,11 @@
         shown = limit - cur;
         r.left.textContent = isActive ? (shown >= 0 ? mmss(shown) : "+" + mmss(-shown)) : mmss(limit);
         r.used.textContent = "total today " + mmss(usedTotal(st.id));
+      } else if (st.mode === "track") {
+        usedForBar = usedTotal(st.id);
+        shown = 0;
+        r.left.textContent = mmss(usedForBar);
+        r.used.textContent = "total today";
       } else {
         usedForBar = usedTotal(st.id);
         shown = limit - usedForBar;
@@ -856,18 +983,18 @@
       }
 
       var over = isActive || st.mode === "pool" ? shown < 0 : false;
-      var low = shown >= 0 && shown <= 60 && (isActive || st.mode === "pool") && usedForBar > 0;
+      var low = st.mode !== "track" && shown >= 0 && shown <= 60 && (isActive || st.mode === "pool") && usedForBar > 0;
       r.rule.textContent = st.rule(state);
       r.row.className = "row" + (isActive ? " active" : "") + (over ? " over" : "");
       r.left.className = "row-left" + (over ? " over" : low ? " warn" : "");
-      var pct = Math.min(100, Math.max(0, (usedForBar / limit) * 100));
+      var pct = st.mode === "track" ? 0 : Math.min(100, Math.max(0, (usedForBar / limit) * 100));
       r.bar.style.width = pct + "%";
       r.bar.className = over ? "over" : (pct >= 80 ? "warn" : "");
       r.btn.textContent = isActive ? "Stop" : "Start";
       r.btn.className = isActive ? "stop" : "start";
 
       if (isActive) {
-        activeInfo = { st: st, shown: shown, over: over };
+        activeInfo = { st: st, shown: st.mode === "track" ? elapsed(st.id) : shown, over: over };
         var el = elapsed(st.id), timeUp = st.ring && el >= st.ring;
         if (timeUp) {
           ringing = st.name;
@@ -879,7 +1006,7 @@
         } else if (st.ring && el >= st.ring - 60 && !alerted[st.id + "-warn"]) {
           alerted[st.id + "-warn"] = true; warn(st);
         }
-        if (!timeUp && shown <= 0 && !alerted[st.id]) { alerted[st.id] = true; beep(); }
+        if (!timeUp && st.mode !== "track" && shown <= 0 && !alerted[st.id]) { alerted[st.id] = true; beep(); }
       }
     });
 
@@ -890,7 +1017,7 @@
       var a = activeInfo;
       $now.className = "now running" + (a.over ? " over" : "");
       $nowName.textContent = a.st.name;
-      $nowSub.textContent = ringing ? "Time's up. Please end this break." : a.over ? "Over your limit" : (a.st.mode === "perUse" ? "Left on this call back" : "Left today");
+      $nowSub.textContent = ringing ? "Time's up. Please end this break." : a.st.mode === "track" ? "Time on this status" : a.over ? "Over your limit" : (a.st.mode === "perUse" ? "Left on this call back" : "Left today");
       $nowTime.textContent = a.over ? "+" + mmss(-a.shown) : mmss(a.shown);
       document.title = ringing ? "TIME'S UP · " + a.st.name : (a.over ? "+" + mmss(-a.shown) : mmss(a.shown)) + " · " + a.st.name;
     } else {
