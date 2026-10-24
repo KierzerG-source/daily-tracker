@@ -133,10 +133,19 @@
     .row-left { grid-column: 1; text-align: left; grid-row: 2; }
     button.start, button.stop { grid-row: 1 / span 2; grid-column: 2; }
   }
-  @media (prefers-reduced-motion: reduce) { .bar > i { transition: none; } }
+  /* Screen flash for break alerts */
+  #flash { position: fixed; inset: 0; pointer-events: none; z-index: 50; opacity: 0; }
+  #flash.warn { background: var(--warn); animation: flashPulse 1s ease-in-out 3; }
+  #flash.alarm { background: var(--over); animation: flashPulse .9s ease-in-out infinite; }
+  @keyframes flashPulse { 0%, 100% { opacity: 0; } 50% { opacity: .5; } }
+  @media (prefers-reduced-motion: reduce) {
+    .bar > i { transition: none; }
+    #flash.warn, #flash.alarm { animation: none; opacity: .22; }
+  }
 </style>
 </head>
 <body>
+<div id="flash" aria-hidden="true"></div>
 <div class="wrap">
 
   <header class="clock">
@@ -227,10 +236,10 @@
   // mode "pool"   = one allowance for the whole day
   // mode "perUse" = limit applies to each time you use the status
   var STATUSES = [
-    { id: "other", name: "Other Break", mode: "pool",
+    { id: "other", name: "Other Break", mode: "pool", ring: 15 * MIN,
       limit: function (s) { return otherBreakCount(s.hours) * 15 * MIN; },
       rule:  function (s) { var n = otherBreakCount(s.hours); return n + " × 15 min for " + s.hours + "h worked"; } },
-    { id: "restroom", name: "Restroom", mode: "pool",
+    { id: "restroom", name: "Restroom", mode: "pool", ring: 10 * MIN,
       limit: function (s) { return restroomMins(s.hours) * MIN; },
       rule:  function (s) { return restroomMins(s.hours) + " min total for " + s.hours + "h worked"; } },
     { id: "tech", name: "Technical Issue", mode: "pool",
@@ -304,7 +313,7 @@
   function startStatus(id) {
     var wasThis = state.active && state.active.id === id;
     stopActive();
-    if (!wasThis) { state.active = { id: id, start: Date.now() }; primeAudio(); }
+    if (!wasThis) { state.active = { id: id, start: Date.now() }; primeAudio(); askNotify(); }
     alerted = {};
     save(); renderLog(); tick();
   }
@@ -313,6 +322,72 @@
   var actx = null, alerted = {};
   function primeAudio() {
     try { actx = actx || new (window.AudioContext || window.webkitAudioContext)(); if (actx.state === "suspended") actx.resume(); } catch (e) {}
+  }
+  /* One tone with a short fade in/out so it doesn't click */
+  function tone(dest, freq, type, vol, t0, dur) {
+    var o = actx.createOscillator(), g = actx.createGain();
+    o.type = type; o.frequency.value = freq;
+    g.gain.setValueAtTime(0, t0);
+    g.gain.linearRampToValueAtTime(vol, t0 + 0.01);
+    g.gain.setValueAtTime(vol, t0 + dur - 0.02);
+    g.gain.linearRampToValueAtTime(0, t0 + dur);
+    o.connect(g); g.connect(dest);
+    o.start(t0); o.stop(t0 + dur + 0.02);
+  }
+
+  /* Repeating alarm. Beeps are scheduled ahead on the audio clock, so they keep
+     playing even if the browser slows this tab's timers while it is in the background.
+     It plays until the break is stopped. */
+  var alarmGain = null, alarmUntil = 0;
+  function keepAlarm() {
+    primeAudio();
+    if (!actx) return;
+    try {
+      if (!alarmGain) {
+        alarmGain = actx.createGain(); alarmGain.gain.value = 1; alarmGain.connect(actx.destination);
+        alarmUntil = actx.currentTime + 0.05;
+      }
+      if (alarmUntil - actx.currentTime < 120) {
+        var from = alarmUntil, to = from + 300;
+        for (var t = from; t < to; t += 2.5) {
+          tone(alarmGain, 880, "square", 0.3, t, 0.22);
+          tone(alarmGain, 1175, "square", 0.3, t + 0.3, 0.22);
+        }
+        alarmUntil = to;
+      }
+    } catch (e) {}
+  }
+  function stopAlarm() {
+    if (!alarmGain) return;
+    try { alarmGain.gain.value = 0; alarmGain.disconnect(); } catch (e) {}
+    alarmGain = null; alarmUntil = 0;
+  }
+
+  /* One minute warning: double beep, screen flash, notification */
+  var $flash = document.getElementById("flash"), flashTimer = null;
+  function warn(st) {
+    primeAudio();
+    if (actx) {
+      try {
+        var t = actx.currentTime + 0.02;
+        tone(actx.destination, 988, "sine", 0.22, t, 0.18);
+        tone(actx.destination, 988, "sine", 0.22, t + 0.3, 0.18);
+      } catch (e) {}
+    }
+    $flash.classList.remove("warn"); void $flash.offsetWidth; $flash.classList.add("warn");
+    clearTimeout(flashTimer);
+    flashTimer = setTimeout(function () { $flash.classList.remove("warn"); }, 3200);
+    notify("1 minute left", st.name + " ends in 1 minute. Please get ready to come back.");
+  }
+  function askNotify() {
+    try { if ("Notification" in window && Notification.permission === "default") Notification.requestPermission(); } catch (e) {}
+  }
+  function notify(title, body) {
+    try {
+      if ("Notification" in window && Notification.permission === "granted") {
+        new Notification(title, { body: body, tag: "break-timer", requireInteraction: true });
+      }
+    } catch (e) {}
   }
   function beep() {
     if (!actx) return;
@@ -759,7 +834,7 @@
     $date.textContent = dateFmt.format(now);
 
     renderPlan(false);
-    var activeInfo = null;
+    var activeInfo = null, ringing = null;
 
     STATUSES.forEach(function (st) {
       var r = refs[st.id];
@@ -793,17 +868,31 @@
 
       if (isActive) {
         activeInfo = { st: st, shown: shown, over: over };
-        if (shown <= 0 && !alerted[st.id]) { alerted[st.id] = true; beep(); }
+        var el = elapsed(st.id), timeUp = st.ring && el >= st.ring;
+        if (timeUp) {
+          ringing = st.name;
+          if (!alerted[st.id + "-ring"]) {
+            alerted[st.id + "-ring"] = true; alerted[st.id] = true;
+            notify("Time's up", st.name + " is over. Please come back from your break.");
+          }
+          keepAlarm();
+        } else if (st.ring && el >= st.ring - 60 && !alerted[st.id + "-warn"]) {
+          alerted[st.id + "-warn"] = true; warn(st);
+        }
+        if (!timeUp && shown <= 0 && !alerted[st.id]) { alerted[st.id] = true; beep(); }
       }
     });
+
+    if (!ringing) stopAlarm();
+    $flash.classList.toggle("alarm", !!ringing);
 
     if (activeInfo) {
       var a = activeInfo;
       $now.className = "now running" + (a.over ? " over" : "");
       $nowName.textContent = a.st.name;
-      $nowSub.textContent = a.over ? "Over your limit" : (a.st.mode === "perUse" ? "Left on this call back" : "Left today");
+      $nowSub.textContent = ringing ? "Time's up. Please end this break." : a.over ? "Over your limit" : (a.st.mode === "perUse" ? "Left on this call back" : "Left today");
       $nowTime.textContent = a.over ? "+" + mmss(-a.shown) : mmss(a.shown);
-      document.title = (a.over ? "+" + mmss(-a.shown) : mmss(a.shown)) + " · " + a.st.name;
+      document.title = ringing ? "TIME'S UP · " + a.st.name : (a.over ? "+" + mmss(-a.shown) : mmss(a.shown)) + " · " + a.st.name;
     } else {
       $now.className = "now";
       $nowName.textContent = "Not on a status";
