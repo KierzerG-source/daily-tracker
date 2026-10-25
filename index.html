@@ -291,9 +291,6 @@
       rule:  function (s) { return s.lunchMin + " min, team lead approval, make up the time"; } },
     { id: "meeting", name: "Meeting", mode: "track",
       limit: function () { return 0; },
-      rule:  function () { return "No limit. Tracked for your overview."; } },
-    { id: "logout", name: "Log Out / Log In", mode: "track",
-      limit: function () { return 0; },
       rule:  function () { return "No limit. Tracked for your overview."; } }
   ];
 
@@ -334,6 +331,10 @@
   try { state = JSON.parse(localStorage.getItem(STORE)); } catch (e) { state = null; }
   if (!state || typeof state !== "object" || !state.used) state = fresh(null);
   if (typeof state.start !== "string") state.start = "";
+  // Clean up anything saved by an earlier version that had the Log Out / Log In status
+  if (state.used) delete state.used.logout;
+  if (Array.isArray(state.log)) state.log = state.log.filter(function (e) { return e.id !== "logout"; });
+  if (state.active && state.active.id === "logout") state.active = null;
   function save() { try { localStorage.setItem(STORE, JSON.stringify(state)); } catch (e) {} }
 
   function byId(id) { for (var i = 0; i < STATUSES.length; i++) if (STATUSES[i].id === id) return STATUSES[i]; }
@@ -509,10 +510,9 @@
   /* ---------- Paste from Slack ---------- */
   var ALIASES = [
     ["lunch", /\blunch\b/i],
-    ["loli", /\bloli\b/i],
+    ["loli", /\bloli\b|\blog\s*-?\s*(?:out|in)\b|\blogout\b|\blogin\b/i],
     ["callback", /call(?:ing)?\s*-?\s*back/i],
     ["meeting", /\bmeetings?\b|\bmtg\b|\bhuddle\b/i],
-    ["logout", /\blog\s*-?\s*(?:out|in)\b|\blogout\b|\blogin\b/i],
     ["moretime", /more\s*time/i],
     ["tech", /\btech(nical)?\b/i],
     ["restroom", /rest\s*-?\s*room|\brr\b|bathroom/i],
@@ -604,7 +604,9 @@
         if (!open) return; // online with no matching offline (e.g. start of shift)
         var sec = Math.round((e.t - open.t) / 1000);
         var id = findStatus(open.status);
-        if (sec > 0) {
+        if (sec <= 0) {
+          out.notes.push(who + ": offline and online at the same minute (" + fmtClock(open.t) + "), so there is nothing to deduct.");
+        } else {
           var key = who + "|" + open.t;
           out.entries.push({
             id: id, sec: sec, who: who, key: key,
